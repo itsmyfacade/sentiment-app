@@ -8,9 +8,9 @@ I built this project to practice combining a machine learning model with a backe
 ---
 
 ## Features
-- `GET /health` → returns a JSON response to confirm the service is running
-- `POST /analyze` → takes `{"text": "..."}` and returns sentiment label + confidence score
-- CORS enabled so a frontend app can call the API
+* `GET /health` → returns a JSON response to confirm the service is running  
+* `POST /analyze` → takes `{"text": "..."}` and returns sentiment label + confidence score  
+* CORS enabled so a frontend app can call the API  
 
 ---
 
@@ -22,58 +22,67 @@ Clone the repo and create a virtual environment:
 git clone https://github.com/itsmyfacade/sentiment-app.git
 cd sentiment-app
 python -m venv .venv
-.\.venv\Scripts\activate   # (Windows)
+.\.venv\Scriptsctivate   # (Windows)
 pip install -r api/requirements.txt
+```
 
 Run the backend:
 
+```bash
 cd api
 python app.py
+```
 
-The service will be available at:
+The service will be available at:  
 👉 http://localhost:8001
 
 ---
 
-Example Requests
+## Example Requests
 
-Health check:
-
+**Health check**
+```bash
 curl http://localhost:8001/health
+```
 
-Analyze text:
-
+**Analyze text**
+```bash
 curl -X POST http://localhost:8001/analyze ^
   -H "Content-Type: application/json" ^
   -d "{\"text\":\"I absolutely love this product!\"}"
-
+```
 
 ---
 
-Testing
+## Testing
 
 Run unit tests with pytest:
 
+```bash
 cd api
 python -m pytest -q
-
+```
 
 ---
 
-Deployment (Render)
+## Deployment (Render)
 
-This app can be deployed for free on Render.
+This app can be deployed for free on [Render](https://render.com).
 
-Backend Service Settings:
-	•	Root Directory: api
-	•	Build Command:
+**Backend Service Settings:**
+* Root Directory: `api`
+* Build Command:  
+  ```bash
+  pip install -r requirements.txt
+  ```
+* Start Command:  
+  ```bash
+  gunicorn -w 1 -k gthread -b 0.0.0.0:10000 app:app
+  ```
+* Health Check Path: `/health`
 
-pip install -r requirements.txt
+---
 
-
-	•	Start Command:
-
-gunicorn -w 1 -k gthread -b 0.0.0.0:10000 app:app
-
-
-	•	Health Check Path: /health
+## Notes
+* This project demonstrates how to connect a machine learning model with a simple Flask API.  
+* Intended as a junior-level showcase project.
