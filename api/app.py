@@ -16,15 +16,19 @@ from transformers import pipeline
 # create the Flask app
 app = Flask(__name__)
 
-# allow requests from other origins (for example, our frontend app later)
-CORS(app)
+# allow all origins for this demo; tighten later if needed
+CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=False)
 
-# load the sentiment model once so it can be reused for all requests
-# this avoids loading the model again and again
-sentiment = pipeline(
-    task="sentiment-analysis",
-    model="distilbert-base-uncased-finetuned-sst-2-english"
-)
+# lazy-load the model on first use so the server can start immediately
+_sentiment = None
+def get_sentiment():
+    global _sentiment
+    if _sentiment is None:
+        _sentiment = pipeline(
+            task="sentiment-analysis",
+            model="distilbert-base-uncased-finetuned-sst-2-english"
+        )
+    return _sentiment
 
 @app.get("/health")
 def health():
@@ -53,7 +57,7 @@ def analyze():
         return jsonify({"error": "text is required"}), 400
 
     # run the model on the input text
-    result = sentiment(text)[0]
+    result = get_sentiment()(text)[0]
 
     # return the label (POSITIVE/NEGATIVE) and the confidence score
     return jsonify({
@@ -83,6 +87,19 @@ def favicon():
     We don't serve an icon here, so just return 204 (no content)
     to avoid noisy 404 logs.
     """
+    return ("", 204)
+
+@app.after_request
+def add_cors_headers(resp):
+    # standard CORS headers so browser preflight succeeds
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    return resp
+
+# respond to preflight OPTIONS for /analyze
+@app.route("/analyze", methods=["OPTIONS"])
+def analyze_options():
     return ("", 204)
 
 # run locally with: python app.py

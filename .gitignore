@@ -1,5 +1,7 @@
 # Virtual environment
 .venv/
+api/.env
+web/.env
 env/
 venv/
 
@@ -21,3 +23,7 @@ Thumbs.db
 # IDE/editor settings
 .vscode/
 .idea/
+
+# Extras
+web/node_modules/
+web/.next/
