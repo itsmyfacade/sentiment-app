@@ -2,10 +2,17 @@
 :root { --maxw: 720px; --gap: 12px; }
 * { box-sizing: border-box; }
 html, body { padding: 0; margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+body { line-height: 1.5; }
 main { max-width: var(--maxw); margin: 40px auto; padding: 0 16px; }
 label { display: grid; gap: 6px; }
 input, textarea { padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
 button { padding: 10px 14px; border-radius: 6px; border: 1px solid #111; background: #fff; cursor: pointer; }
 button:disabled { opacity: 0.6; cursor: not-allowed; }
-.result { margin-top: 16px; font-weight: 600; }
+
+/* error text under form */
 .error { margin-top: 8px; color: #a00; }
+
+/* result styles (two simple colors) */
+.result { margin-top: 16px; font-weight: 600; }
+.result.positive { color: #0a7f2e; } /* green-ish */
+.result.negative { color: #a00; }    /* red */

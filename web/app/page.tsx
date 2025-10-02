@@ -3,26 +3,31 @@
 import { useState } from "react";
 
 /*
-  Frontend page for the Sentiment App.
-  - Uses a Next.js API route (/api/analyze) that proxies to the Flask backend.
-  - Shows loading state, result, and simple error messages.
+  Simple sentiment form.
+  - Sends text to /api/analyze (Next.js API route).
+  - Shows loading, result, or an error message.
 */
 
 type AnalyzeResponse = { label: string; score: number };
 type ErrorResponse = { error?: string };
 
 export default function Home() {
+  // form state
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // UI feedback
   const [result, setResult] = useState<AnalyzeResponse | null>(null);
   const [error, setError] = useState("");
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+
+    // reset messages each submit
     setError("");
     setResult(null);
 
-    // basic validation (require some text)
+    // basic check: must have text
     const value = text.trim();
     if (!value) {
       setError("Please enter some text to analyze.");
@@ -32,7 +37,7 @@ export default function Home() {
     try {
       setLoading(true);
 
-      // call our Next.js proxy which forwards to Flask
+      // call Next.js API route which forwards to Flask
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -42,12 +47,11 @@ export default function Home() {
       const data = (await res.json()) as AnalyzeResponse & ErrorResponse;
 
       if (!res.ok) {
-        // backend might send {error: "..."} on bad requests
         setError(data?.error || "Request failed.");
         return;
       }
 
-      // quick type check (should be label + score)
+      // quick safety check for expected shape
       if (typeof data.label !== "string" || typeof data.score !== "number") {
         setError("Unexpected response from API.");
         return;
@@ -60,6 +64,13 @@ export default function Home() {
       setLoading(false);
     }
   }
+
+  // disable button while loading or if the box is empty
+  const isDisabled = loading || !text.trim();
+
+  // choose a class based on the label (for color)
+  const resultClass =
+    result?.label?.toUpperCase() === "POSITIVE" ? "result positive" : "result negative";
 
   return (
     <main>
@@ -77,17 +88,17 @@ export default function Home() {
           />
         </label>
 
-        <button type="submit" disabled={loading}>
+        <button type="submit" disabled={isDisabled}>
           {loading ? "Analyzing..." : "Analyze"}
         </button>
       </form>
 
-      {/* error message (shows under the form) */}
+      {/* show error under the form */}
       {error && <div className="error">{error}</div>}
 
-      {/* result box (only shows after a successful call) */}
+      {/* show result when we have it */}
       {result && (
-        <div className="result" aria-live="polite">
+        <div className={resultClass} aria-live="polite">
           {result.label} ({(result.score * 100).toFixed(1)}%)
         </div>
       )}

@@ -1,88 +1,104 @@
+
 # Sentiment Analysis App
 
-This is a simple sentiment analysis API built with **Flask** and **Hugging Face Transformers**.  
-It uses the DistilBERT SST-2 model to classify text as **positive** or **negative**.
+A small Flask API that classifies text as **positive** or **negative** using a Hugging Face model.  
+Built for learning and demo purposes.
 
-I built this project to practice combining a machine learning model with a backend API, and to make it easy to deploy online.
+Note: I originally built this project a few months ago. This version is an **expanded rebuild** with a cleaner setup (Flask API + Next.js frontend) so I could practice structuring a full-stack app again.
 
 ---
 
 ## Features
-* `GET /health` → returns a JSON response to confirm the service is running  
-* `POST /analyze` → takes `{"text": "..."}` and returns sentiment label + confidence score  
-* CORS enabled so a frontend app can call the API  
+- `GET /health` → quick check if the API is running  
+- `POST /analyze` → send text and get back a sentiment label + confidence score  
 
 ---
 
-## Local Setup
+## Local Setup (Windows PowerShell)
 
-Clone the repo and create a virtual environment:
+Clone the repo and go into the folder:
 
-```bash
+```powershell
 git clone https://github.com/itsmyfacade/sentiment-app.git
 cd sentiment-app
-python -m venv .venv
-.\.venv\Scriptsctivate   # (Windows)
-pip install -r api/requirements.txt
 ```
 
-Run the backend:
+**API (backend)**
 
-```bash
+Create and activate a virtual environment:
+```powershell
 cd api
+python -m venv .venv
+.\.venv\Scripts\Activate
+```
+
+Install dependencies:
+
+```powershell
+pip install -r requirements.txt
+```
+
+Run the API:
+
+```powershell
 python app.py
 ```
 
-The service will be available at:  
-👉 http://localhost:8001
+The backend will start on:
+👉 http://127.0.0.1:8001
+
+---
+
+**Web (frontend)**
+
+Open a new terminal, go to the web folder:
+
+```powershell
+cd web
+npm install
+npm run dev
+```
+
+The frontend will start on:
+👉 http://127.0.0.1:3000
 
 ---
 
 ## Example Requests
 
-**Health check**
-```bash
-curl http://localhost:8001/health
+**Health check:**
+
+```powershell
+curl http://127.0.0.1:8001/health
 ```
 
-**Analyze text**
-```bash
-curl -X POST http://localhost:8001/analyze ^
+**Analyze (classify sentiment):**
+
+```powershell
+curl -X POST http://127.0.0.1:8001/analyze ^
   -H "Content-Type: application/json" ^
   -d "{\"text\":\"I absolutely love this product!\"}"
 ```
+
+Or just open the frontend at http://127.0.0.1:3000 and use the form.
 
 ---
 
 ## Testing
 
-Run unit tests with pytest:
+Run quick tests with pytest:
 
-```bash
+```powershell
 cd api
 python -m pytest -q
 ```
 
 ---
 
-## Deployment (Render)
-
-This app can be deployed for free on [Render](https://render.com).
-
-**Backend Service Settings:**
-* Root Directory: `api`
-* Build Command:  
-  ```bash
-  pip install -r requirements.txt
-  ```
-* Start Command:  
-  ```bash
-  gunicorn -w 1 -k gthread -b 0.0.0.0:10000 app:app
-  ```
-* Health Check Path: `/health`
+## Notes
+	•	Model is distilbert-base-uncased-finetuned-sst-2-english from Hugging Face.
+	•	Frontend is Next.js 14 with a simple form + proxy route.
+	•	Project started as backend-only, later expanded into a full-stack demo.
 
 ---
 
-## Notes
-* This project demonstrates how to connect a machine learning model with a simple Flask API.  
-* Intended as a junior-level showcase project.
