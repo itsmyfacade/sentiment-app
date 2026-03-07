@@ -1,29 +1,43 @@
-# Virtual environment
+# Virtual environments
 .venv/
+venv/
+env/
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 api/.env
 web/.env
-env/
-venv/
+web/app/.env
 
-# Python cache
+# Python cache / test cache
 __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
+.pytest_cache/
 
 # Build / packaging
 *.egg-info/
 dist/
 build/
 
+# Node / Next
+node_modules/
+web/node_modules/
+.next/
+web/.next/
+
 # OS-specific files
 .DS_Store
 Thumbs.db
 
-# IDE/editor settings
+# IDE / editor
 .vscode/
 .idea/
 
-# Extras
-web/node_modules/
-web/.next/
+# Logs
+*.log
