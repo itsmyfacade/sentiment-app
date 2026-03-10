@@ -13,6 +13,11 @@ The architecture emphasizes:
 - Testable API endpoints
 - Production-aware structure
 
+## Project History
+
+This project was originally built in October 2025 as an early sentiment analysis application.
+The current version is a production-focused rebuild with improved API structure, automated tests, inference timing, Docker support, and deployment-oriented documentation.
+
 ## Model
 
 - Model: `distilbert-base-uncased-finetuned-sst-2-english`
