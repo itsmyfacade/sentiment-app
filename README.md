@@ -1,57 +1,106 @@
+# Sentiment Analysis Service
 
-# Sentiment Analysis App
+Production-oriented sentiment classification API powered by a transformer model. Designed as a modular machine learning inference service with a separate frontend client.
 
-A small Flask API that classifies text as **positive** or **negative** using a Hugging Face model.  
-Built for learning and demo purposes.
+## Overview
 
-Note: I originally built this project a few months ago. This version is an **expanded rebuild** with a cleaner setup (Flask API + Next.js frontend) so I could practice structuring a full-stack app again.
+This project implements a REST-based sentiment classification service using a pre-trained DistilBERT model. The system exposes inference endpoints through a Flask API and serves predictions to a Next.js frontend.
 
----
+The architecture emphasizes:
 
-## Features
-- `GET /health` → quick check if the API is running  
-- `POST /analyze` → send text and get back a sentiment label + confidence score  
+- Clean separation of backend and frontend
+- Reusable inference pipeline
+- Testable API endpoints
+- Production-aware structure
 
----
+## Model
 
-## Local Setup (Windows PowerShell)
+- Model: `distilbert-base-uncased-finetuned-sst-2-english`
+- Framework: Hugging Face Transformers with PyTorch
+- Task: Binary sentiment classification
+- Output: Label and confidence score
 
-Clone the repo and go into the folder:
+The model is initialized once and reused across inference requests to minimize repeated load overhead.
+
+## API Endpoints
+
+### Health Check
+
+`GET /health`
+
+Returns service status and model metadata.
+
+### Sentiment Analysis
+
+`POST /analyze`
+
+Request:
+
+```json
+{
+  "text": "I absolutely love this product!"
+}
+```
+
+Response:
+
+```json
+{
+  "label": "POSITIVE",
+  "score": 0.999885,
+  "inference_time_ms": 37.81
+}
+```
+
+## Architecture
+
+```
+sentiment-app/
+|-- api/
+|   |-- app.py
+|   |-- requirements.txt
+|   |-- tests/
+|-- web/
+|   |-- app/
+|-- README.md
+```
+
+- Backend handles model inference and API routing
+- Frontend provides the client interaction layer
+- Service boundaries support independent deployment
+
+## Design Principles
+
+- Separation of concerns between inference service and UI
+- Stateless API design
+- Deterministic JSON responses
+- Easily containerizable backend
+- Model abstraction for future swap/upgrade
+
+## Local Setup
+
+### Clone the Repository
 
 ```powershell
 git clone https://github.com/itsmyfacade/sentiment-app.git
 cd sentiment-app
 ```
 
-**API (backend)**
+### Backend
 
-Create and activate a virtual environment:
 ```powershell
 cd api
 python -m venv .venv
 .\.venv\Scripts\Activate
-```
-
-Install dependencies:
-
-```powershell
 pip install -r requirements.txt
-```
-
-Run the API:
-
-```powershell
 python app.py
 ```
 
-The backend will start on:
-👉 http://127.0.0.1:8001
+Backend runs on:
 
----
+`http://127.0.0.1:8001`
 
-**Web (frontend)**
-
-Open a new terminal, go to the web folder:
+### Frontend
 
 ```powershell
 cd web
@@ -59,46 +108,128 @@ npm install
 npm run dev
 ```
 
-The frontend will start on:
-👉 http://127.0.0.1:3000
+Frontend runs on:
 
----
+`http://127.0.0.1:3000`
 
 ## Example Requests
 
-**Health check:**
+### Health Check
 
-```powershell
+```bash
 curl http://127.0.0.1:8001/health
 ```
 
-**Analyze (classify sentiment):**
+Example response:
 
-```powershell
-curl -X POST http://127.0.0.1:8001/analyze ^
-  -H "Content-Type: application/json" ^
-  -d "{\"text\":\"I absolutely love this product!\"}"
+```json
+{
+  "model_loaded": false,
+  "model_name": "distilbert-base-uncased-finetuned-sst-2-english",
+  "service": "sentiment-api",
+  "status": "ok"
+}
 ```
 
-Or just open the frontend at http://127.0.0.1:3000 and use the form.
+### Analyze Sentiment
 
----
+```bash
+curl -X POST "http://127.0.0.1:8001/analyze"   -H "Content-Type: application/json"   -d '{"text":"I absolutely love this product!"}'
+```
+
+Example response:
+
+```json
+{
+  "inference_time_ms": 37.81,
+  "label": "POSITIVE",
+  "score": 0.999885
+}
+```
+
+You can also open the frontend at `http://127.0.0.1:3000` and submit text through the form.
+
+## Docker
+
+The backend service can be containerized and deployed using Docker.
+The container runs the Flask API using Gunicorn for production-style serving.
+
+### Build the Image
+
+From the `api` directory:
+
+```bash
+docker build -t sentiment-api .
+```
+
+### Run the Container
+
+```bash
+docker run -p 8001:8001 sentiment-api
+```
+
+The API will be available at:
+
+`http://127.0.0.1:8001`
+
+### Verify the Service
+
+Health check:
+
+```bash
+curl http://127.0.0.1:8001/health
+```
+
+Sentiment inference:
+
+```bash
+curl -X POST "http://127.0.0.1:8001/analyze"   -H "Content-Type: application/json"   -d '{"text":"I absolutely love this product!"}'
+```
+
+### Notes
+
+- Gunicorn is used as the production WSGI server inside the container.
+- The model is initialized once and reused across requests.
+- The first inference request may take longer due to model initialization.
 
 ## Testing
 
-Run quick tests with pytest:
+Run the backend tests with:
 
 ```powershell
 cd api
-python -m pytest -q
+pytest -q
 ```
 
----
+Current test coverage includes:
 
-## Notes
-	•	Model is distilbert-base-uncased-finetuned-sst-2-english from Hugging Face.
-	•	Frontend is Next.js 14 with a simple form + proxy route.
-	•	Project started as backend-only, later expanded into a full-stack demo.
+- `/health` endpoint validation
+- `/analyze` success path
+- `/analyze` missing input validation
 
----
+## Performance
 
+Local CPU benchmark using a warm model:
+
+- Native local inference observed around `16 ms`
+- Containerized inference observed around `38 ms`
+- Model is reused across requests to avoid reload overhead
+- Response includes label, confidence score, and latency measurement
+
+## Production Considerations
+
+- Model initialized once and reused across requests
+- Structured JSON responses
+- Input validation for missing and oversized text
+- REST interface suitable for containerization
+- Test coverage for critical endpoints
+- Environment variable support for model name and runtime configuration
+
+## Tech Stack
+
+- Python
+- Flask
+- PyTorch
+- Hugging Face Transformers
+- Next.js
+- TypeScript
