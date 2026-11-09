@@ -1,31 +1,27 @@
 import { NextResponse } from "next/server";
 
-/*
-  Simple proxy route.
-  - Receives POST from the page.
-  - Forwards to the Flask API /analyze.
-  - Sends the Flask response back to the browser.
-*/
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8001";
+const API_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8001";
+const REQUEST_TIMEOUT_MS = Number(process.env.API_TIMEOUT_MS || "180000");
 
 export async function POST(req: Request) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
-    const body = await req.text(); // pass body through as-is
-    const r = await fetch(`${API_URL}/analyze`, {
+    const body = await req.text();
+    const response = await fetch(`${API_URL}/analyze`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body,
+      signal: controller.signal,
     });
-
-    // forward status + JSON back to the browser
-    const text = await r.text();
+    const text = await response.text();
     return new NextResponse(text, {
-      status: r.status,
-      headers: { "Content-Type": "application/json" },
+      status: response.status,
+      headers: { "Content-Type": response.headers.get("content-type") || "application/json" },
     });
   } catch {
-    // if Flask is down or not reachable
-    return NextResponse.json({ error: "Proxy failed to reach backend" }, { status: 502 });
+    return NextResponse.json({ error: "Sentiment service unavailable" }, { status: 502 });
+  } finally {
+    clearTimeout(timeout);
   }
 }

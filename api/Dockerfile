@@ -9,10 +9,11 @@ ENV PORT=8001
 COPY requirements.txt .
 
 RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch==2.9.0+cpu && \
     pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
 EXPOSE 8001
 
-CMD ["gunicorn", "--bind", "0.0.0.0:8001", "--timeout", "180", "app:app"]
+CMD ["sh", "-c", "gunicorn --workers 1 --bind 0.0.0.0:${PORT:-8001} --timeout 180 app:app"]

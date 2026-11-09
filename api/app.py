@@ -11,12 +11,12 @@ Endpoints:
 
 import logging
 import os
+import threading
 import time
 from typing import Any, Dict
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from transformers import pipeline
 
 # -----------------------------------------------------------------------------
 # App setup
@@ -24,7 +24,8 @@ from transformers import pipeline
 app = Flask(__name__)
 
 # allow all origins for this project
-CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=False)
+TRUSTED_ORIGINS = [origin.strip() for origin in os.getenv("FRONTEND_ORIGINS", "http://localhost:3000").split(",") if origin.strip()]
+CORS(app, resources={r"/*": {"origins": TRUSTED_ORIGINS}}, supports_credentials=False)
 
 # -----------------------------------------------------------------------------
 # Config
@@ -36,6 +37,10 @@ MODEL_NAME = os.getenv(
 HOST = os.getenv("HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", "8001"))
 DEBUG = os.getenv("FLASK_DEBUG", "false").lower() == "true"
+app.config["MAX_CONTENT_LENGTH"] = int(os.getenv("MAX_CONTENT_LENGTH", "20000"))
+INFERENCE_CONCURRENCY = max(1, int(os.getenv("INFERENCE_CONCURRENCY", "1")))
+RATE_LIMIT_REQUESTS = max(1, int(os.getenv("RATE_LIMIT_REQUESTS", "30")))
+RATE_LIMIT_WINDOW_SECONDS = max(1, int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60")))
 
 # -----------------------------------------------------------------------------
 # Logging
@@ -50,6 +55,9 @@ logger = logging.getLogger(__name__)
 # Lazy-loaded model
 # -----------------------------------------------------------------------------
 _sentiment = None
+_inference_slots = threading.BoundedSemaphore(INFERENCE_CONCURRENCY)
+_rate_limit_lock = threading.Lock()
+_rate_limit_state: dict[str, tuple[float, int]] = {}
 
 
 def get_sentiment():
@@ -58,6 +66,8 @@ def get_sentiment():
     """
     global _sentiment
     if _sentiment is None:
+        from transformers import pipeline
+
         logger.info("Loading sentiment model: %s", MODEL_NAME)
         _sentiment = pipeline(
             task="sentiment-analysis",
@@ -76,6 +86,21 @@ def error_response(message: str, status_code: int) -> tuple:
 
 def success_response(payload: Dict[str, Any], status_code: int = 200) -> tuple:
     return jsonify(payload), status_code
+
+
+def request_is_rate_limited() -> bool:
+    """Apply a small per-process fixed-window limit for public demo protection."""
+    now = time.monotonic()
+    client_key = request.remote_addr or "unknown"
+    with _rate_limit_lock:
+        window_start, count = _rate_limit_state.get(client_key, (now, 0))
+        if now - window_start >= RATE_LIMIT_WINDOW_SECONDS:
+            window_start, count = now, 0
+        if count >= RATE_LIMIT_REQUESTS:
+            _rate_limit_state[client_key] = (window_start, count)
+            return True
+        _rate_limit_state[client_key] = (window_start, count + 1)
+    return False
 
 
 # -----------------------------------------------------------------------------
@@ -147,8 +172,18 @@ def analyze():
         }
     """
     try:
-        data = request.get_json(silent=True) or {}
-        text = str(data.get("text") or "").strip()
+        if request_is_rate_limited():
+            return error_response("request rate limit exceeded", 429)
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return error_response("request body must be a JSON object", 400)
+
+        raw_text = data.get("text")
+        if "text" not in data:
+            return error_response("text is required", 400)
+        if not isinstance(raw_text, str):
+            return error_response("text must be a string", 400)
+        text = raw_text.strip()
 
         if not text:
             return error_response("text is required", 400)
@@ -156,11 +191,16 @@ def analyze():
         if len(text) > 5000:
             return error_response("text is too long", 400)
 
-        sentiment_pipeline = get_sentiment()
+        if not _inference_slots.acquire(blocking=False):
+            return error_response("inference service is busy; retry shortly", 429)
 
-        start_time = time.perf_counter()
-        result = sentiment_pipeline(text)[0]
-        end_time = time.perf_counter()
+        try:
+            sentiment_pipeline = get_sentiment()
+            start_time = time.perf_counter()
+            result = sentiment_pipeline(text)[0]
+            end_time = time.perf_counter()
+        finally:
+            _inference_slots.release()
 
         inference_time_ms = round((end_time - start_time) * 1000, 2)
 
@@ -184,17 +224,14 @@ def analyze():
         return error_response("internal server error", 500)
 
 
+@app.errorhandler(413)
+def request_too_large(_error):
+    return error_response("request body is too large", 413)
+
+
 # -----------------------------------------------------------------------------
 # Response headers
 # -----------------------------------------------------------------------------
-@app.after_request
-def add_cors_headers(resp):
-    resp.headers["Access-Control-Allow-Origin"] = "*"
-    resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-    resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-    return resp
-
-
 # -----------------------------------------------------------------------------
 # Entrypoint
 # -----------------------------------------------------------------------------

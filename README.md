@@ -238,3 +238,54 @@ Local CPU benchmark using a warm model:
 - Hugging Face Transformers
 - Next.js
 - TypeScript
+
+## Security and deployment boundary
+
+Set `FRONTEND_ORIGINS` to the exact frontend origin before exposing the API. The API applies bounded request sizes, a single in-process inference slot, a small per-process fixed-window request limit, and safe public errors. These controls are suitable for a controlled demonstration, not a substitute for a distributed production rate limiter or authentication. The test suite mocks transformer inference, so running tests does not download the model. A real demo still requires the Hugging Face model download and sufficient memory for PyTorch. This repository has not been deployed or load-tested as a public service.
+## Final frontend experience
+
+The Next.js client is a dark, keyboard-friendly analysis workspace with a 5,000-character input limit, example prompts, live character count, disabled duplicate submissions, model-loading feedback, actual score and inference-time presentation, and explicit binary-classification limitations.
+
+```text
+Browser → Next.js /api/analyze proxy → Flask /analyze → DistilBERT SST-2
+```
+
+Use Python 3.12 for the documented local environment. The Dockerfile installs CPU-only Torch; isolated container build and real inference verification have passed. Public deployment remains unverified.
+## Verified two-terminal startup
+
+```powershell
+# Terminal 1 - backend
+cd api
+py -3.12 -m venv .venv312
+.\.venv312\Scripts\Activate.ps1
+$env:PORT = "8011"
+$env:FRONTEND_ORIGINS = "http://localhost:3111"
+pip install -r requirements.txt
+python app.py
+
+# Terminal 2 - frontend
+cd web
+npm ci
+$env:API_URL = "http://127.0.0.1:8011"
+npm run dev -- --port 3111
+```
+
+Open `http://localhost:3111`. The backend health endpoint is `http://127.0.0.1:8011/health`.
+
+The workbench also supports bounded batch analysis of up to 10 entries, session-only history, aggregate positive/negative distribution, and CSV export. Submitted text is not persisted by the frontend. The server-side proxy allows up to three minutes for a sleeping backend to cold-start, then returns a safe error instead of leaving the UI waiting indefinitely.
+
+## Container and deployment boundary
+
+The backend Dockerfile uses Gunicorn, CPU-only PyTorch, the Render `PORT` contract, and lazy DistilBERT initialization. Isolated container build and real inference acceptance have passed; public deployment remains unverified. A Render deployment should use separate frontend and backend services, configure the frontend `API_URL` with the private backend service URL, and retain deployment-level abuse protection.
+
+## Final acceptance measurements
+
+- Isolated Docker build: passed.
+- Isolated real inference: passed with DistilBERT returning `POSITIVE` for the acceptance input.
+- Strict 512 MiB container memory observed: approximately 405 MiB during cold-started real inference.
+- Image size observed: approximately 1.66 GB.
+- QA containers used dedicated names, ports, and network; no MAATMARK resources were modified.
+
+## Render preparation
+
+`render.yaml` defines a free Docker API service and a free Node frontend service. Set `FRONTEND_ORIGINS` on the API to the final frontend URL and `API_URL` on the frontend to the API URL during Blueprint setup. The service binds Render's `PORT` and health checks `/health`. The strict 512 MiB local acceptance run completed real inference at approximately 362 MiB, leaving limited headroom; cold starts, free-hour suspension, and public abuse protection still require deployment-specific validation.

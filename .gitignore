@@ -1,5 +1,7 @@
 # Virtual environments
 .venv/
+sentiment-recovery/
+.venv312-recovery/
 venv/
 env/
 
@@ -19,6 +21,7 @@ __pycache__/
 *.pyo
 *.pyd
 .pytest_cache/
+*.tsbuildinfo
 
 # Build / packaging
 *.egg-info/
