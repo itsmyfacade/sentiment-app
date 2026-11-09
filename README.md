@@ -2,7 +2,6 @@
 
 **Live frontend:** https://sentiment-lab-web.onrender.com
 **Live API:** https://sentiment-lab-api.onrender.com
-**GitHub:** https://github.com/itsmyfacade/sentiment-app
 
 Production-oriented sentiment classification API powered by a transformer model. Designed as a modular machine learning inference service with a separate frontend client.
 
