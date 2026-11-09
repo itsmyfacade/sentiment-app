@@ -276,7 +276,7 @@ The workbench also supports bounded batch analysis of up to 10 entries, session-
 
 ## Container and deployment boundary
 
-The backend Dockerfile uses Gunicorn, CPU-only PyTorch, the Render `PORT` contract, and lazy DistilBERT initialization. Isolated container build and real inference acceptance have passed; public deployment remains unverified. A Render deployment should use separate frontend and backend services, configure the frontend `API_URL` with the private backend service URL, and retain deployment-level abuse protection.
+The backend Dockerfile uses one Gunicorn `gthread` worker with two threads, CPU-only PyTorch, the Render `PORT` contract, and lazy DistilBERT initialization. The single process preserves model memory while allowing the lightweight `/health` endpoint to respond during inference. A Render deployment should use separate frontend and backend services, configure the frontend `API_URL` with the private backend service URL, and retain deployment-level abuse protection.
 
 ## Final acceptance measurements
 
